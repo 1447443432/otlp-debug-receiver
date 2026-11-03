@@ -1,0 +1,4 @@
+grpcio>=1.65,<2
+opentelemetry-proto>=1.27,<2
+fastapi>=0.112,<1
+uvicorn>=0.30,<1

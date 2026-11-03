@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otlp-debug-receiver
+  namespace: otlp-debug
+spec:
+  replicas: 1 # SQLite 单写，禁止扩成多副本
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: otlp-debug-receiver
+  template:
+    metadata:
+      labels:
+        app: otlp-debug-receiver
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: receiver
+          image: otlp-debug-receiver:0.1.0 # 替换成可从集群拉取的仓库地址
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: grpc-otlp
+              containerPort: 4317
+            - name: http-ui
+              containerPort: 8080
+          env:
+            - name: DB_PATH
+              value: /data/otlp.sqlite3
+            - name: RETENTION_HOURS
+              value: "24"
+            - name: LOG_LEVEL
+              value: INFO
+            # 可选：先创建 Secret，之后取消注释：
+            # - name: UI_TOKEN
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: otlp-debug-ui
+            #       key: token
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http-ui
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http-ui
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          emptyDir: {} # 默认临时数据，Pod 重建会清空；见 pvc-optional.yaml
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otlp-debug-receiver
+  namespace: otlp-debug
+spec:
+  type: ClusterIP
+  selector:
+    app: otlp-debug-receiver
+  ports:
+    - name: grpc-otlp
+      port: 4317
+      targetPort: grpc-otlp
+    - name: http-ui
+      port: 8080
+      targetPort: http-ui

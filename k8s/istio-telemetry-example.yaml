@@ -1,0 +1,17 @@
+# 示例，不要直接 apply！先在 mesh ConfigMap 的 extensionProviders 顶层定义
+# name: mdis-otel-debug; opentelemetry.service: otlp-debug-receiver.otlp-debug.svc.cluster.local; port: 4317
+# 本例只对带有 otlp-debug-tracing: 'true' 标签的工作负载生效。
+# 在正式环境修改前：先 kubectl get telemetry -A -o yaml 评估已有优先级和覆盖关系。
+apiVersion: telemetry.istio.io/v1
+kind: Telemetry
+metadata:
+  name: otlp-debug-tracing
+  namespace: default # 替换测试工作负载所在 namespace
+spec:
+  selector:
+    matchLabels:
+      otlp-debug-tracing: "true"
+  tracing:
+    - providers:
+        - name: mdis-otel-debug
+      randomSamplingPercentage: 100.0 # 仅测试工作负载；生产不要全量采样

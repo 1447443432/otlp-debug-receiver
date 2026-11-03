@@ -1,0 +1,12 @@
+# 可选：如果需要 Pod 重建后仍保存数据，先创建 PVC，并将 deployment.yaml 的 data 卷
+# 从 emptyDir: {} 改为 persistentVolumeClaim: {claimName: otlp-debug-data}。
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: otlp-debug-data
+  namespace: otlp-debug
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 5Gi
